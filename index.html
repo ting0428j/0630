@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>星光公主注音魔法拼圖 - 南一一下版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@400;500;700&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Kiwi Maru', 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #fff1f2 0%, #faf5ff 50%, #f0fdf4 100%);
+            user-select: none;
+            -webkit-user-select: none;
+            min-height: 100vh;
+            touch-action: manipulation;
+            overflow-x: hidden;
+        }
+        
+        .bg-stars {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(255, 235, 240, 0.4) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(240, 235, 255, 0.5) 0%, transparent 50%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .star-sparkle {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 10px 2px rgba(255,255,255,0.8);
+            animation: twinkle linear infinite;
+        }
+
+        @keyframes twinkle {
+            0% { opacity: 0.2; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+            100% { opacity: 0.2; transform: scale(0.8); }
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 8px 32px rgba(255, 182, 193, 0.2);
+            border-radius: 24px;
+        }
+
+        .btn-magic {
+            background: linear-gradient(to bottom, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
+            color: #d13076;
+            border: none;
+            border-bottom: 4px solid #ff758c;
+            transition: all 0.15s ease;
+        }
+        .btn-magic:active {
+            transform: translateY(4px);
+            border-bottom: 0px solid #ff758c;
+            margin-top: 4px;
+        }
+
+        .target-slot {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 4.5rem;
+            height: 5.5rem;
+            background: #f1f5f9;
+            border: 3px dashed #94a3b8;
+            border-radius: 12px;
+            margin: 0 0.5rem;
+            vertical-align: middle;
+            color: transparent;
+            position: relative;
+        }
+        .target-slot.filled {
+            background: #ffedd5;
+            border: 3px solid #fdba74;
+            color: #c2410c;
+            font-weight: bold;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            50% { transform: translateX(8px); }
+            75% { transform: translateX(-8px); }
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            80% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .character-text {
+            font-size: 2.2rem;
+            line-height: 1.4;
+            color: #2d3748;
+        }
+        .ruby-text {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 2px;
+        }
+        .ruby-char { font-size: 2.2rem; }
+        .ruby-pinyin { font-size: 0.9rem; color: #718096; }
+
+        .puzzle-container {
+            border: 6px solid #fbc2eb;
+            box-shadow: 0 10px 25px rgba(251, 194, 235, 0.5);
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body>
+    <div class="bg-stars" id="star-container"></div>
+
+    <!-- 標題與選單畫面 -->
+    <div id="menu-screen" class="min-h-screen flex flex-col items-center justify-center p-6 relative z-10">
+        <div class="glass-panel p-8 md:p-12 text-center max-w-4xl w-full">
+            <h1 class="text-3xl md:text-5xl font-bold mb-4" style="color: #d63384;">
+                <i class="fa-solid fa-wand-magic-sparkles mr-3"></i>星光公主注音魔法拼圖
+            </h1>
+            <p class="text-lg md:text-xl text-gray-600 mb-8 font-medium">南一國語一下課文精準檢驗版</p>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8" id="lesson-grid">
+                <!-- 課程按鈕由 JS 產生 -->
+            </div>
+            
+            <button onclick="loadLesson('all')" class="w-full btn-magic py-4 rounded-2xl text-2xl font-bold shadow-lg flex justify-center items-center">
+                <i class="fa-solid fa-crown mr-3 text-yellow-400"></i>
+                皇家綜合大挑戰
+                <i class="fa-solid fa-crown ml-3 text-yellow-400"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 遊戲畫面 -->
+    <div id="game-screen" class="min-h-screen hidden flex-col items-center p-2 md:p-6 relative z-10 w-full max-w-6xl mx-auto">
+        <!-- 頂部資訊列 -->
+        <div class="w-full flex justify-between items-center mb-4">
+            <button onclick="backToMenu()" class="bg-white/90 hover:bg-white text-gray-700 px-4 py-2 md:px-5 md:py-3 rounded-xl font-bold shadow-sm transition">
+                <i class="fa-solid fa-arrow-left mr-2"></i>返回
+            </button>
+            <div class="text-xl md:text-2xl font-bold text-pink-600 bg-white/90 px-6 py-2 rounded-full shadow-sm" id="game-title">
+                第一課
+            </div>
+            <div class="text-lg md:text-xl font-bold text-gray-700 bg-white/90 px-4 py-2 rounded-full shadow-sm flex items-center">
+                <i class="fa-solid fa-star text-yellow-400 mr-2"></i> <span id="score-display">0</span> / 10
+            </div>
+        </div>
+
+        <div class="flex flex-col md:flex-row w-full gap-6 items-start justify-center">
+            <!-- 左側：公主拼圖區域 -->
+            <div class="w-full md:w-1/3 flex justify-center flex-shrink-0">
+                <div class="puzzle-container relative w-64 h-64 md:w-80 md:h-80 bg-white rounded-2xl overflow-hidden">
+                    <img id="puzzle-image" src="" class="absolute inset-0 w-full h-full object-cover" />
+                    <!-- 拼圖遮罩格線 -->
+                    <div id="puzzle-grid" class="absolute inset-0 grid grid-cols-5 grid-rows-2 gap-0">
+                        <!-- 由 JS 產生 10 個遮罩 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右側：題目與打字區 -->
+            <div class="w-full md:w-2/3 flex flex-col items-center gap-6">
+                <!-- 題目區塊 -->
+                <div class="glass-panel w-full p-6 text-center shadow-md">
+                    <p class="text-gray-500 mb-4 text-lg font-bold">請輸入紅字的正確注音</p>
+                    <div id="sentence-container" class="character-text flex flex-wrap justify-center items-end gap-y-6">
+                        <!-- 句子內容由 JS 產生 -->
+                    </div>
+                </div>
+
+                <!-- 輸入顯示與功能鍵 -->
+                <div class="flex items-center gap-2 md:gap-4 w-full justify-center">
+                    <div id="pinyin-input" class="text-2xl md:text-3xl font-bold tracking-[0.2em] text-pink-600 bg-white border-2 border-pink-300 border-b-4 h-12 md:h-14 min-w-[120px] md:min-w-[150px] flex items-center justify-center rounded-xl px-4 shadow-inner transition-colors duration-300">
+                        <!-- 使用者輸入的注音會顯示在這裡 -->
+                    </div>
+                    <button onclick="handleVirtualKey('delete')" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 md:px-5 h-12 md:h-14 rounded-xl border-b-4 border-gray-600 active:border-b-0 active:translate-y-1 transition text-xl">
+                        <i class="fa-solid fa-delete-left"></i>
+                    </button>
+                    <button onclick="handleVirtualKey('submit')" class="bg-green-400 hover:bg-green-500 text-white font-bold py-2 px-4 md:px-6 h-12 md:h-14 rounded-xl border-b-4 border-green-600 active:border-b-0 active:translate-y-1 transition text-lg md:text-xl">
+                        確認 (Enter)
+                    </button>
+                </div>
+
+                <!-- 虛擬注音鍵盤 (實體鍵盤亦可直接連動) -->
+                <div class="w-full max-w-lg bg-white/80 p-4 rounded-2xl shadow-lg border-2 border-pink-100 mt-2">
+                    <div id="virtual-keyboard" class="flex flex-wrap justify-center gap-1 md:gap-2">
+                        <!-- 鍵盤按鈕由 JS 產生 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 過關彈跳視窗 -->
+    <div id="completion-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="glass-panel p-8 md:p-12 max-w-lg w-full text-center relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 text-yellow-300 opacity-30 text-9xl">
+                <i class="fa-solid fa-star"></i>
+            </div>
+            <i class="fa-solid fa-medal text-6xl text-yellow-400 mb-6 drop-shadow-md"></i>
+            <h2 class="text-4xl font-bold text-pink-600 mb-4">拼圖解鎖完成！</h2>
+            <p class="text-xl text-gray-700 mb-8 font-medium" id="feedback-text">太棒了！成功獲得星光公主的美麗畫作！</p>
+            
+            <div class="flex flex-col gap-4">
+                <button id="btn-next-lesson" onclick="goToNextLesson()" class="btn-magic py-4 rounded-xl text-xl font-bold shadow-md w-full">
+                    挑戰下一幅畫 <i class="fa-solid fa-arrow-right ml-2"></i>
+                </button>
+                <div class="flex gap-4">
+                    <button onclick="replayLesson()" class="flex-1 bg-white text-pink-500 border-2 border-pink-200 py-3 rounded-xl font-bold hover:bg-pink-50 transition">
+                        <i class="fa-solid fa-rotate-right mr-2"></i>再玩一次
+                    </button>
+                    <button onclick="backToMenu()" class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-200 transition">
+                        回主選單
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 南一國語一下 資料庫 ---
+        const lessonData = [
+            {
+                id: 1, title: "第一課 太陽是充電機",
+                words: [
+                    { char: "太", pinyin: "ㄊㄞˋ", sentence: "大雨過後，太陽為小花充充電。" },
+                    { char: "充", pinyin: "ㄔㄨㄥ", sentence: "太陽為小花充充電。" },
+                    { char: "電", pinyin: "ㄉㄧㄢˋ", sentence: "太陽為土地充充電。" },
+                    { char: "雨", pinyin: "ㄩˇ", sentence: "大雨過後，太陽為小花充充電。" },
+                    { char: "過", pinyin: "ㄍㄨㄛˋ", sentence: "冬天過後，太陽為土地充充電。" },
+                    { char: "後", pinyin: "ㄏㄡˋ", sentence: "大哭過後，太陽為我充充電。" },
+                    { char: "為", pinyin: "ㄨㄟˋ", sentence: "太陽為我充充電。" },
+                    { char: "冬", pinyin: "ㄉㄨㄥ", sentence: "冬天過後，太陽為土地充充電。" },
+                    { char: "土", pinyin: "ㄊㄨˇ", sentence: "太陽為土地充充電。" },
+                    { char: "草", pinyin: "ㄘㄠˇ", sentence: "青草冒出來了。" },
+                    { char: "冒", pinyin: "ㄇㄠˋ", sentence: "青草冒出來了。" },
+                    { char: "哭", pinyin: "ㄎㄨ", sentence: "大哭過後，太陽為我充充電。" },
+                    { char: "心", pinyin: "ㄒㄧㄣ", sentence: "我開心的笑了。" },
+                    { char: "陽", pinyin: "ㄧㄤˊ", sentence: "太陽為小花充充電。" },
+                    { char: "機", pinyin: "ㄐㄧ", sentence: "太陽是充電機。" }
+                ]
+            },
+            {
+                id: 2, title: "第二課 春雨是什麼顏色",
+                words: [
+                    { char: "顏", pinyin: "ㄧㄢˊ", sentence: "我問：「春雨是什麼顏色？」" },
+                    { char: "色", pinyin: "ㄙㄜˋ", sentence: "小鳥說：「春雨是綠色的，你看，草地綠了。」" },
+                    { char: "細", pinyin: "ㄒㄧˋ", sentence: "細細的雨，滴答滴答的下著。" },
+                    { char: "著", pinyin: "ㄓㄜ˙", sentence: "細細的雨，滴答滴答的下著。" },
+                    { char: "問", pinyin: "ㄨㄣˋ", sentence: "我問：「春雨是什麼顏色？」" },
+                    { char: "鳥", pinyin: "ㄋㄧㄠˇ", sentence: "小鳥說：「春雨是綠色的。」" },
+                    { char: "綠", pinyin: "ㄌㄩˋ", sentence: "你看，草地綠了。" },
+                    { char: "看", pinyin: "ㄎㄢˋ", sentence: "你看，雨後的天空。" },
+                    { char: "藍", pinyin: "ㄌㄢˊ", sentence: "小魚說：「春雨是藍色的。」" },
+                    { char: "空", pinyin: "ㄎㄨㄥ", sentence: "你看，雨後的天空。" },
+                    { char: "媽", pinyin: "ㄇㄚ", sentence: "媽媽說：「春雨是彩色的。」" },
+                    { char: "彩", pinyin: "ㄘㄞˇ", sentence: "媽媽說：「春雨是彩色的。」" },
+                    { char: "中", pinyin: "ㄓㄨㄥ", sentence: "你看，空中的彩虹。" },
+                    { char: "虹", pinyin: "ㄏㄨㄥˊ", sentence: "你看，空中的彩虹。" },
+                    { char: "蜜", pinyin: "ㄇㄧˋ", sentence: "蜜蜂說：「春雨是紅色的。」" },
+                    { char: "蜂", pinyin: "ㄈㄥ", sentence: "蜜蜂說：「春雨是紅色的。」" }
+                ]
+            },
+            {
+                id: 3, title: "第三課 山中音樂會",
+                words: [
+                    { char: "音", pinyin: "ㄧㄣ", sentence: "他們要開一場山中音樂會。" },
+                    { char: "樂", pinyin: "ㄩㄝˋ", sentence: "他們要開一場山中音樂會。" },
+                    { char: "會", pinyin: "ㄏㄨㄟˋ", sentence: "他們要開一場山中音樂會。" },
+                    { char: "坡", pinyin: "ㄆㄛ", sentence: "山坡上的花朵，忙著布置會場入口。" },
+                    { char: "忙", pinyin: "ㄇㄤˊ", sentence: "山坡上的花朵，忙著布置會場入口。" },
+                    { char: "布", pinyin: "ㄅㄨˋ", sentence: "忙著布置會場入口。" },
+                    { char: "場", pinyin: "ㄔㄤˇ", sentence: "他們要開一場山中音樂會。" },
+                    { char: "入", pinyin: "ㄖㄨˋ", sentence: "忙著布置會場入口。" },
+                    { char: "口", pinyin: "ㄎㄡˇ", sentence: "忙著布置會場入口。" },
+                    { char: "河", pinyin: "ㄏㄜˊ", sentence: "小河在山上嘩啦嘩啦。" },
+                    { char: "林", pinyin: "ㄌㄧㄣˊ", sentence: "小鳥在林間蜘蜘喳喳。" },
+                    { char: "間", pinyin: "ㄐㄧㄢ", sentence: "小鳥在林間蜘蜘喳喳。" },
+                    { char: "風", pinyin: "ㄈㄥ", sentence: "風呼呼的跑過來說。" },
+                    { char: "跑", pinyin: "ㄆㄠˇ", sentence: "風呼呼的跑過來說。" },
+                    { char: "置", pinyin: "ㄓˋ", sentence: "忙著布置會場入口。" }
+                ]
+            },
+            {
+                id: 4, title: "第四課 書是我的好朋友",
+                words: [
+                    { char: "書", pinyin: "ㄕㄨ", sentence: "打開書，「哇！」" },
+                    { char: "打", pinyin: "ㄉㄚˇ", sentence: "打開書，「嘩啦！」" },
+                    { char: "跳", pinyin: "ㄊㄧㄠˋ", sentence: "恐龍跳出來，陪我去冒險。" },
+                    { char: "陪", pinyin: "ㄆㄟˊ", sentence: "海豚跳出來，陪我找歡樂。" },
+                    { char: "去", pinyin: "ㄑㄩˋ", sentence: "恐龍跳出來，陪我去冒險。" },
+                    { char: "險", pinyin: "ㄒㄧㄢˇ", sentence: "恐龍跳出來，陪我去冒險。" },
+                    { char: "海", pinyin: "ㄏㄞˇ", sentence: "海豚跳出來，陪我找歡樂。" },
+                    { char: "找", pinyin: "ㄓㄠˇ", sentence: "海豚跳出來，陪我找歡樂。" },
+                    { char: "歡", pinyin: "ㄏㄨㄢ", sentence: "海豚跳出來，陪我找歡樂。" },
+                    { char: "神", pinyin: "ㄕㄣˊ", sentence: "書的神奇猜不到！" },
+                    { char: "奇", pinyin: "ㄑㄧˊ", sentence: "書的神奇猜不到！" },
+                    { char: "猜", pinyin: "ㄘㄞ", sentence: "書的神奇猜不到！" },
+                    { char: "次", pinyin: "ㄘˋ", sentence: "下次打開書，誰會出來跟我玩？" },
+                    { char: "誰", pinyin: "ㄕㄟˊ", sentence: "下次打開書，誰會出來跟我玩？" },
+                    { char: "跟", pinyin: "ㄍㄣ", sentence: "下次打開書，誰會出來跟我玩？" },
+                    { char: "恐", pinyin: "ㄎㄨㄥˇ", sentence: "恐龍跳出來，陪我去冒險。" },
+                    { char: "龍", pinyin: "ㄌㄨㄥˊ", sentence: "恐龍跳出來，陪我去冒險。" },
+                    { char: "豚", pinyin: "ㄊㄨㄣˊ", sentence: "海豚跳出來，陪我找歡樂。" }
+                ]
+            },
+            {
+                id: 5, title: "第五課 風喜歡和我玩",
+                words: [
+                    { char: "喜", pinyin: "ㄒㄧˇ", sentence: "風喜歡和我玩。" },
+                    { char: "帶", pinyin: "ㄉㄞˋ", sentence: "我帶著氣球，跑到草地上玩。" },
+                    { char: "氣", pinyin: "ㄑㄧˋ", sentence: "突然，風把氣球吹得高高的。" },
+                    { char: "球", pinyin: "ㄑㄧㄡˊ", sentence: "突然，風把氣球吹得高高的。" },
+                    { char: "始", pinyin: "ㄕˇ", sentence: "一開始，風輕輕吹，氣球輕輕飛。" },
+                    { char: "吹", pinyin: "ㄔㄨㄟ", sentence: "一開始，風輕輕吹，氣球輕輕飛。" },
+                    { char: "突", pinyin: "ㄊㄨˊ", sentence: "突然，風把氣球吹得高高的。" },
+                    { char: "然", pinyin: "ㄖㄢˊ", sentence: "突然，風把氣球吹得高高的。" },
+                    { char: "得", pinyin: "ㄉㄜ˙", sentence: "突然，風把氣球吹得高高的。" },
+                    { char: "高", pinyin: "ㄍㄠ", sentence: "突然，風把氣球吹得高高的。" },
+                    { char: "樹", pinyin: "ㄕㄨˋ", sentence: "把氣球吹到樹上。" },
+                    { char: "給", pinyin: "ㄍㄟˇ", sentence: "你把氣球吹還給我，好不好？" },
+                    { char: "可", pinyin: "ㄎㄜˇ", sentence: "可是，風都不理我。" },
+                    { char: "理", pinyin: "ㄌㄧˇ", sentence: "可是，風都不理我。" },
+                    { char: "只", pinyin: "ㄓˇ", sentence: "他只是笑著。" },
+                    { char: "輕", pinyin: "ㄑㄧㄥ", sentence: "一開始，風輕輕吹。" },
+                    { char: "飛", pinyin: "ㄈㄟ", sentence: "氣球輕輕飛。" },
+                    { char: "還", pinyin: "ㄏㄨㄢˊ", sentence: "你把氣球吹還給我，好不好？" }
+                ]
+            },
+            {
+                id: 6, title: "第六課 鄰居的小孩",
+                words: [
+                    { char: "居", pinyin: "ㄐㄩ", sentence: "鄰居的小孩常常躲在大門後。" },
+                    { char: "孩", pinyin: "ㄏㄞˊ", sentence: "鄰居的小孩常常躲在大門後。" },
+                    { char: "常", pinyin: "ㄔㄤˊ", sentence: "他常常躲在大門後，看著我。" },
+                    { char: "躲", pinyin: "ㄉㄨㄛˇ", sentence: "他常常躲在大門後，看著我。" },
+                    { char: "發", pinyin: "ㄈㄚ", sentence: "我發現了，他就會把頭縮回去。" },
+                    { char: "現", pinyin: "ㄒㄧㄢˋ", sentence: "我發現了，他就會把頭縮回去。" },
+                    { char: "就", pinyin: "ㄐㄧㄡˋ", sentence: "我發現了，他就會把頭縮回去。" },
+                    { char: "頭", pinyin: "ㄊㄡˊ", sentence: "我發現了，他就會把頭縮回去。" },
+                    { char: "回", pinyin: "ㄏㄨㄟˊ", sentence: "我發現了，他就會把頭縮回去。" },
+                    { char: "想", pinyin: "ㄒㄧㄤˇ", sentence: "我想找他玩。" },
+                    { char: "但", pinyin: "ㄉㄢˋ", sentence: "但是，要怎麼讓他知道呢？" },
+                    { char: "怎", pinyin: "ㄗㄣˇ", sentence: "但是，要怎麼讓他知道呢？" },
+                    { char: "知", pinyin: "ㄓ", sentence: "但是，要怎麼讓他知道呢？" },
+                    { char: "道", pinyin: "ㄉㄠˋ", sentence: "但是，要怎麼讓他知道呢？" },
+                    { char: "先", pinyin: "ㄒㄧㄢ", sentence: "我先對他笑一笑。" },
+                    { char: "鄰", pinyin: "ㄌㄧㄣˊ", sentence: "鄰居的小孩常常躲在大門後。" },
+                    { char: "縮", pinyin: "ㄙㄨㄛ", sentence: "我發現了，他就會把頭縮回去。" },
+                    { char: "讓", pinyin: "ㄖㄤˋ", sentence: "但是，要怎麼讓他知道呢？" }
+                ]
+            },
+            {
+                id: 7, title: "第七課 畫一張臉",
+                words: [
+                    { char: "畫", pinyin: "ㄏㄨㄚˋ", sentence: "畫一張可愛的笑臉。" },
+                    { char: "愛", pinyin: "ㄞˋ", sentence: "畫一顆紅紅的愛心。" },
+                    { char: "送", pinyin: "ㄙㄨㄥˋ", sentence: "寫下感謝的話，送給老師。" },
+                    { char: "寫", pinyin: "ㄒㄧㄝˇ", sentence: "寫下祝福的話，送給爸爸和媽媽。" },
+                    { char: "祝", pinyin: "ㄓㄨˋ", sentence: "寫下祝福的話，送給爸爸和媽媽。" },
+                    { char: "張", pinyin: "ㄓㄤ", sentence: "畫一張可愛的笑臉。" },
+                    { char: "臉", pinyin: "ㄌㄧㄢˇ", sentence: "畫一張可愛的笑臉。" },
+                    { char: "感", pinyin: "ㄍㄢˇ", sentence: "寫下感謝的話，送給老師。" },
+                    { char: "謝", pinyin: "ㄒㄧㄝˋ", sentence: "寫下感謝的話，送給老師。" },
+                    { char: "老", pinyin: "ㄌㄠˇ", sentence: "寫下感謝的話，送給老師。" },
+                    { char: "師", pinyin: "ㄕ", sentence: "寫下感謝的話，送給老師。" },
+                    { char: "啊", pinyin: "ㄚ˙", sentence: "啊！我還要畫一個漂亮的蛋糕。" },
+                    { char: "還", pinyin: "ㄏㄞˊ", sentence: "啊！我還要畫一個漂亮的蛋糕。" },
+                    { char: "漂", pinyin: "ㄆㄧㄠˋ", sentence: "我還要畫一個漂亮的蛋糕。" },
+                    { char: "亮", pinyin: "ㄌㄧㄤˋ", sentence: "我還要畫一個漂亮的蛋糕。" },
+                    { char: "顆", pinyin: "ㄎㄜ", sentence: "畫一顆紅紅的愛心。" },
+                    { char: "蛋", pinyin: "ㄉㄢˋ", sentence: "我還要畫一個漂亮的蛋糕。" },
+                    { char: "糕", pinyin: "ㄍㄠ", sentence: "我還要畫一個漂亮的蛋糕。" }
+                ]
+            },
+            {
+                id: 8, title: "第八課 卡片",
+                words: [
+                    { char: "卡", pinyin: "ㄎㄚˇ", sentence: "請你幫我把卡片送給秋天。" },
+                    { char: "片", pinyin: "ㄆㄧㄢˋ", sentence: "請你幫我把卡片送給秋天。" },
+                    { char: "秋", pinyin: "ㄑㄧㄡ", sentence: "請你幫我把卡片送給秋天。" },
+                    { char: "採", pinyin: "ㄘㄞˇ", sentence: "松鼠忙著採果子。" },
+                    { char: "果", pinyin: "ㄍㄨㄛˇ", sentence: "松鼠忙著採果子。" },
+                    { char: "吃", pinyin: "ㄔ", sentence: "小熊吃飽了。" },
+                    { char: "飽", pinyin: "ㄅㄠˇ", sentence: "小熊吃飽了。" },
+                    { char: "方", pinyin: "ㄈㄤ", sentence: "小熊想要找個地方睡覺。" },
+                    { char: "埋", pinyin: "ㄇㄞˊ", sentence: "種子埋進土裡。" },
+                    { char: "進", pinyin: "ㄐㄧㄣˋ", sentence: "種子埋進土裡。" },
+                    { char: "很", pinyin: "ㄏㄣˇ", sentence: "等了很久。" },
+                    { char: "久", pinyin: "ㄐㄧㄡˇ", sentence: "等了很久。" },
+                    { char: "嗎", pinyin: "ㄇㄚ˙", sentence: "長大了嗎？" },
+                    { char: "長", pinyin: "ㄓㄤˇ", sentence: "長大了嗎？" },
+                    { char: "敬", pinyin: "ㄐㄧㄥˋ", sentence: "敬祝他快樂。" },
+                    { char: "松", pinyin: "ㄙㄨㄥ", sentence: "松鼠在樹上跳來跳去。" },
+                    { char: "鼠", pinyin: "ㄕㄨˇ", sentence: "松鼠在樹上跳來跳去。" },
+                    { char: "從", pinyin: "ㄘㄨㄥˊ", sentence: "松鼠從樹上跳下來。" },
+                    { char: "等", pinyin: "ㄉㄥˇ", sentence: "種子埋進土裡，等了很久。" }
+                ]
+            },
+            {
+                id: 9, title: "第九課 寶貝",
+                words: [
+                    { char: "奶", pinyin: "ㄋㄞˇ", sentence: "奶奶說，您就像寶貝一樣。" },
+                    { char: "貝", pinyin: "ㄅㄟˋ", sentence: "奶奶說，您就像寶貝一樣。" },
+                    { char: "早", pinyin: "ㄗㄠˇ", sentence: "早晨的校園裡，有人在工作。" },
+                    { char: "校", pinyin: "ㄒㄧㄠˋ", sentence: "早晨的校園裡，有人在工作。" },
+                    { char: "園", pinyin: "ㄩㄢˊ", sentence: "早晨的校園裡，有人在工作。" },
+                    { char: "工", pinyin: "ㄍㄨㄥ", sentence: "早晨的校園裡，有人在工作。" },
+                    { char: "作", pinyin: "ㄗㄨㄛˋ", sentence: "早晨的校園裡，有人在工作。" },
+                    { char: "她", pinyin: "ㄊㄚ", sentence: "她一邊擦汗，一邊澆花。" },
+                    { char: "邊", pinyin: "ㄅㄧㄢ", sentence: "她一邊擦汗，一邊澆花。" },
+                    { char: "汗", pinyin: "ㄏㄢˋ", sentence: "她一邊擦汗，一邊澆花。" },
+                    { char: "學", pinyin: "ㄒㄩㄝˊ", sentence: "當成了大家學習的榜樣。" },
+                    { char: "您", pinyin: "ㄋㄧㄣˊ", sentence: "奶奶說，您就像寶貝一樣。" },
+                    { char: "樣", pinyin: "ㄧㄤˋ", sentence: "奶奶說，您就像寶貝一樣。" },
+                    { char: "當", pinyin: "ㄉㄤ", sentence: "當成了大家學習的榜樣。" },
+                    { char: "成", pinyin: "ㄔㄥˊ", sentence: "當成了大家學習的榜樣。" },
+                    { char: "寶", pinyin: "ㄅㄠˇ", sentence: "奶奶說，您就像寶貝一樣。" },
+                    { char: "擦", pinyin: "ㄘㄚ", sentence: "她一邊擦汗，一邊澆花。" },
+                    { char: "澆", pinyin: "ㄐㄧㄠ", sentence: "她一邊擦汗，一邊澆花。" }
+                ]
+            },
+            {
+                id: 10, title: "第十課 井底之蛙",
+                words: [
+                    { char: "井", pinyin: "ㄐㄧㄥˇ", sentence: "一隻青蛙在井底。" },
+                    { char: "隻", pinyin: "ㄓ", sentence: "一隻青蛙在井底。" },
+                    { char: "除", pinyin: "ㄔㄨˊ", sentence: "除了睡覺就是吃東西。" },
+                    { char: "睡", pinyin: "ㄕㄨㄟˋ", sentence: "除了睡覺就是吃東西。" },
+                    { char: "覺", pinyin: "ㄐㄧㄠˋ", sentence: "除了睡覺就是吃東西。" },
+                    { char: "東", pinyin: "ㄉㄨㄥ", sentence: "除了睡覺就是吃東西。" },
+                    { char: "西", pinyin: "ㄒㄧ", sentence: "除了睡覺就是吃東西。" },
+                    { char: "拍", pinyin: "ㄆㄞ", sentence: "牠拍拍肚子，唉了幾聲。" },
+                    { char: "肚", pinyin: "ㄉㄨˋ", sentence: "牠拍拍肚子，唉了幾聲。" },
+                    { char: "唉", pinyin: "ㄞ", sentence: "牠拍拍肚子，唉了幾聲。" },
+                    { char: "幾", pinyin: "ㄐㄧˇ", sentence: "牠拍拍肚子，唉了幾聲。" },
+                    { char: "世", pinyin: "ㄕˋ", sentence: "世界有多大呢？" },
+                    { char: "界", pinyin: "ㄐㄧㄝˋ", sentence: "世界有多大呢？" },
+                    { char: "連", pinyin: "ㄌㄧㄢˊ", sentence: "連裝水的窪地都很大嗎？" },
+                    { char: "裝", pinyin: "ㄓㄨㄤ", sentence: "連裝水的窪地都很大嗎？" },
+                    { char: "蛙", pinyin: "ㄨㄚ", sentence: "一隻青蛙在井底。" },
+                    { char: "窪", pinyin: "ㄨㄚ", sentence: "連裝水的窪地都很大嗎？" }
+                ]
+            },
+            {
+                id: 11, title: "第十一課 水池",
+                words: [
+                    { char: "星", pinyin: "ㄒㄧㄥ", sentence: "星光拉出一道影子。" },
+                    { char: "面", pinyin: "ㄇㄧㄢˋ", sentence: "池塘水面有許多圈波紋。" },
+                    { char: "許", pinyin: "ㄒㄩˇ", sentence: "池塘水面有許多圈波紋。" },
+                    { char: "池", pinyin: "ㄔˊ", sentence: "池塘水面有許多圈波紋。" },
+                    { char: "圈", pinyin: "ㄑㄩㄢ", sentence: "池塘水面有許多圈波紋。" },
+                    { char: "波", pinyin: "ㄅㄛ", sentence: "池塘水面有許多圈波紋。" },
+                    { char: "紋", pinyin: "ㄨㄣˊ", sentence: "池塘水面有許多圈波紋。" },
+                    { char: "見", pinyin: "ㄐㄧㄢˋ", sentence: "我看見小鴨，趕快告訴大家。" },
+                    { char: "快", pinyin: "ㄎㄨㄞˋ", sentence: "我看見小鴨，趕快告訴大家。" },
+                    { char: "告", pinyin: "ㄍㄠˋ", sentence: "我看見小鴨，趕快告訴大家。" },
+                    { char: "訴", pinyin: "ㄙㄨˋ", sentence: "我看見小鴨，趕快告訴大家。" },
+                    { char: "光", pinyin: "ㄍㄨㄤ", sentence: "星光拉出一道影子。" },
+                    { char: "拉", pinyin: "ㄌㄚ", sentence: "星光拉出一道影子。" },
+                    { char: "怪", pinyin: "ㄍㄨㄞˋ", sentence: "怪了，呀，是誰在水裡？" },
+                    { char: "呀", pinyin: "ㄧㄚ˙", sentence: "怪了，呀，是誰在水裡？" },
+                    { char: "鴨", pinyin: "ㄧㄚ", sentence: "我看見小鴨，趕快告訴大家。" },
+                    { char: "塘", pinyin: "ㄊㄤˊ", sentence: "池塘水面有許多圈波紋。" }
+                ]
+            },
+            {
+                id: 12, title: "第十二課 快樂不止一半",
+                words: [
+                    { char: "止", pinyin: "ㄓˇ", sentence: "快樂不止一半。" },
+                    { char: "半", pinyin: "ㄅㄢˋ", sentence: "半山羊在田裡種瓜苗。" },
+                    { char: "羊", pinyin: "ㄧㄤˊ", sentence: "半山羊在田裡種瓜苗。" },
+                    { char: "田", pinyin: "ㄊㄧㄢˊ", sentence: "半山羊在田裡種瓜苗。" },
+                    { char: "再", pinyin: "ㄗㄞˋ", sentence: "再怎麼辛苦，也能收到甜美的果實。" },
+                    { char: "瓜", pinyin: "ㄍㄨㄚ", sentence: "半山羊在田裡種瓜苗。" },
+                    { char: "苗", pinyin: "ㄇㄧㄠˊ", sentence: "半山羊在田裡種瓜苗。" },
+                    { char: "辛", pinyin: "ㄒㄧㄣ", sentence: "再怎麼辛苦，也能收到甜美的果實。" },
+                    { char: "苦", pinyin: "ㄎㄨˇ", sentence: "再怎麼辛苦，也能收到甜美的果實。" },
+                    { char: "油", pinyin: "ㄧㄡˊ", sentence: "大家一起加油。" },
+                    { char: "能", pinyin: "ㄋㄥˊ", sentence: "也能收到甜美的果實。" },
+                    { char: "收", pinyin: "ㄕㄡ", sentence: "也能收到甜美的果實。" },
+                    { char: "甜", pinyin: "ㄊㄧㄢˊ", sentence: "也能收到甜美的果實。" },
+                    { char: "分", pinyin: "ㄈㄣ", sentence: "大家一起分享。" },
+                    { char: "享", pinyin: "ㄒㄧㄤˇ", sentence: "大家一起分享。" },
+                    { char: "豬", pinyin: "ㄓㄨ", sentence: "小豬也來吃葉子。" },
+                    { char: "種", pinyin: "ㄓㄨㄥˋ", sentence: "半山羊在田裡種瓜苗。" },
+                    { char: "葉", pinyin: "ㄧㄝˋ", sentence: "小豬也來吃葉子。" }
+                ]
+            }
+        ];
+
+        // --- 虛擬與實體鍵盤對應 ---
+        const bopoKeysOrdered = [
+            'ㄅ','ㄆ','ㄇ','ㄈ','ㄉ','ㄊ','ㄋ','ㄌ','ㄍ','ㄎ','ㄏ',
+            'ㄐ','ㄑ','ㄒ','ㄓ','ㄔ','ㄕ','ㄖ','ㄗ','ㄘ','ㄙ',
+            'ㄧ','ㄨ','ㄩ','ㄚ','ㄛ','ㄜ','ㄝ','ㄞ','ㄟ','ㄠ','ㄡ','ㄢ','ㄣ','ㄤ','ㄥ','ㄦ',
+            'ˊ','ˇ','ˋ','˙'
+        ];
+
+        const physicalKeyMap = {
+            '1': 'ㄅ', '2': 'ㄉ', '3': 'ˇ', '4': 'ˋ', '5': 'ㄓ', '6': 'ˊ', '7': '˙', '8': 'ㄚ', '9': 'ㄞ', '0': 'ㄢ', '-': 'ㄦ',
+            'q': 'ㄆ', 'w': 'ㄊ', 'e': 'ㄍ', 'r': 'ㄐ', 't': 'ㄔ', 'y': 'ㄗ', 'u': 'ㄧ', 'i': 'ㄛ', 'o': 'ㄟ', 'p': 'ㄣ',
+            'a': 'ㄇ', 's': 'ㄋ', 'd': 'ㄎ', 'f': 'ㄑ', 'g': 'ㄕ', 'h': 'ㄘ', 'j': 'ㄨ', 'k': 'ㄜ', 'l': 'ㄠ', ';': 'ㄤ',
+            'z': 'ㄈ', 'x': 'ㄌ', 'c': 'ㄏ', 'v': 'ㄒ', 'b': 'ㄖ', 'n': 'ㄙ', 'm': 'ㄩ', ',': 'ㄝ', '.': 'ㄡ', '/': 'ㄥ'
+        };
+
+        const state = {
+            currentLessonId: null,
+            questions: [],
+            currentQuestionIndex: 0,
+            score: 0,
+            maxScore: 10, // 拼圖有10塊
+            isLocked: false,
+            currentInput: ""
+        };
+
+        function createStars() {
+            const container = document.getElementById('star-container');
+            for (let i = 0; i < 40; i++) {
+                const star = document.createElement('div');
+                star.className = 'star-sparkle';
+                star.style.width = Math.random() * 4 + 2 + 'px';
+                star.style.height = star.style.width;
+                star.style.left = Math.random() * 100 + 'vw';
+                star.style.top = Math.random() * 100 + 'vh';
+                star.style.animationDuration = (Math.random() * 3 + 1.5) + 's';
+                star.style.animationDelay = (Math.random() * 2) + 's';
+                container.appendChild(star);
+            }
+        }
+
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'zh-TW';
+                utterance.rate = 0.9; 
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function initKeyboard() {
+            const kbContainer = document.getElementById('virtual-keyboard');
+            kbContainer.innerHTML = '';
+            bopoKeysOrdered.forEach(k => {
+                const btn = document.createElement('button');
+                btn.className = 'w-9 h-9 md:w-11 md:h-11 bg-white text-gray-700 font-bold text-lg md:text-xl rounded shadow border-b-2 border-gray-300 hover:bg-pink-50 active:translate-y-1 active:border-b-0 transition flex items-center justify-center';
+                btn.innerText = k;
+                btn.onclick = () => handleVirtualKey(k);
+                kbContainer.appendChild(btn);
+            });
+        }
+
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex !== 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        function initMenu() {
+            createStars();
+            initKeyboard();
+            const grid = document.getElementById('lesson-grid');
+            grid.innerHTML = '';
+            
+            lessonData.forEach(lesson => {
+                const btn = document.createElement('button');
+                btn.className = 'bg-white hover:bg-pink-50 text-gray-700 border-2 border-pink-100 py-3 md:py-4 rounded-xl shadow-sm hover:shadow-md transition font-bold text-lg md:text-xl flex flex-col items-center justify-center';
+                btn.onclick = () => loadLesson(lesson.id);
+                btn.innerHTML = `
+                    <span class="text-pink-400 mb-1 text-sm"><i class="fa-solid fa-book-open"></i></span>
+                    ${lesson.title.split(' ')[0]}
+                `;
+                grid.appendChild(btn);
+            });
+        }
+
+        function initPuzzle() {
+            const grid = document.getElementById('puzzle-grid');
+            grid.innerHTML = '';
+            // 使用 Dicebear SVG 產生可愛公主圖，根據關卡變化
+            const seed = state.currentLessonId === 'all' ? 'RoyalPrincess' : 'Princess' + state.currentLessonId;
+            document.getElementById('puzzle-image').src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}&backgroundColor=ffd1dc`;
+            
+            for (let i = 0; i < state.maxScore; i++) {
+                const cell = document.createElement('div');
+                cell.id = `piece-${i}`;
+                cell.className = 'bg-pink-100 border border-pink-200 transition-opacity duration-700 w-full h-full flex items-center justify-center';
+                cell.innerHTML = '<i class="fa-solid fa-star text-pink-300 opacity-60 text-xs md:text-sm"></i>';
+                grid.appendChild(cell);
+            }
+        }
+
+        function loadLesson(id) {
+            state.currentLessonId = id;
+            state.score = 0;
+            state.currentQuestionIndex = 0;
+            state.isLocked = false;
+            document.getElementById('score-display').innerText = state.score;
+            
+            initPuzzle(); // 重置拼圖
+
+            let pool = [];
+            if (id === 'all') {
+                document.getElementById('game-title').innerText = "皇家綜合大挑戰";
+                pool = lessonData.flatMap(lesson => lesson.words);
+            } else {
+                const lesson = lessonData.find(l => l.id === id);
+                document.getElementById('game-title').innerText = lesson.title;
+                pool = [...lesson.words];
+            }
+
+            shuffle(pool);
+            state.questions = pool.slice(0, state.maxScore);
+            
+            while(state.questions.length < state.maxScore) {
+                 let extraPool = [...pool];
+                 shuffle(extraPool);
+                 state.questions.push(extraPool[0]);
+            }
+
+            document.getElementById('menu-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            document.getElementById('game-screen').classList.add('flex');
+            
+            showQuestion();
+        }
+
+        function showQuestion() {
+            state.isLocked = false;
+            state.currentInput = "";
+            updateInputDisplay();
+            
+            const inputEl = document.getElementById('pinyin-input');
+            inputEl.className = "text-2xl md:text-3xl font-bold tracking-[0.2em] text-pink-600 bg-white border-2 border-pink-300 border-b-4 h-12 md:h-14 min-w-[120px] md:min-w-[150px] flex items-center justify-center rounded-xl px-4 shadow-inner transition-colors duration-300";
+
+            const q = state.questions[state.currentQuestionIndex];
+            const sentenceDiv = document.getElementById('sentence-container');
+            sentenceDiv.innerHTML = '';
+            
+            let found = false;
+            for (let i = 0; i < q.sentence.length; i++) {
+                const char = q.sentence[i];
+                if (char === q.char && !found) {
+                    const slot = document.createElement('div');
+                    slot.className = 'target-slot';
+                    slot.id = 'drop-target';
+                    // 顯示中文字，將注音部分隱藏等待輸入
+                    slot.innerHTML = `<span class="ruby-char text-pink-600">${char}</span><span class="ruby-pinyin text-transparent">_</span>`;
+                    sentenceDiv.appendChild(slot);
+                    found = true;
+                } else {
+                    const span = document.createElement('span');
+                    span.className = 'ruby-text';
+                    span.innerHTML = `<span class="ruby-char">${char}</span>`;
+                    sentenceDiv.appendChild(span);
+                }
+            }
+            
+            speak(q.sentence);
+        }
+
+        // 處理虛擬/實體按鍵輸入
+        function handleVirtualKey(key) {
+            if (state.isLocked) return;
+
+            if (key === 'delete') {
+                state.currentInput = state.currentInput.slice(0, -1);
+            } else if (key === 'submit') {
+                checkAnswer();
+                return;
+            } else {
+                if (state.currentInput.length < 4) { // 注音符號最多 3 個加上聲調 1 個
+                    state.currentInput += key;
+                }
+            }
+            updateInputDisplay();
+        }
+
+        function updateInputDisplay() {
+            document.getElementById('pinyin-input').innerText = state.currentInput;
+        }
+
+        // 檢查答案是否正確
+        function checkAnswer() {
+            if (!state.currentInput) return; // 空白不送出
+
+            const q = state.questions[state.currentQuestionIndex];
+            const correctPinyin = q.pinyin;
+            const inputEl = document.getElementById('pinyin-input');
+
+            if (state.currentInput === correctPinyin) {
+                // 答對了
+                state.isLocked = true;
+                inputEl.classList.add('bg-green-100', 'text-green-700', 'border-green-400');
+                
+                // 解鎖一塊拼圖
+                const piece = document.getElementById(`piece-${state.score}`);
+                if (piece) piece.style.opacity = '0';
+
+                state.score++;
+                document.getElementById('score-display').innerText = state.score;
+                speak(q.char); // 唸出該字
+
+                // 填入題目空格
+                const targetSlot = document.getElementById('drop-target');
+                targetSlot.classList.add('filled');
+                targetSlot.innerHTML = `<span class="ruby-char text-gray-800">${q.char}</span><span class="ruby-pinyin !text-orange-600">${correctPinyin}</span>`;
+
+                setTimeout(() => {
+                    state.currentQuestionIndex++;
+                    if (state.currentQuestionIndex < state.maxScore) {
+                        showQuestion();
+                    } else {
+                        showCompletion();
+                    }
+                }, 1200);
+
+            } else {
+                // 答錯了
+                inputEl.classList.add('bg-red-100', 'text-red-600', 'border-red-400', 'animate-[shake_0.4s_ease-in-out]');
+                setTimeout(() => {
+                    inputEl.classList.remove('bg-red-100', 'text-red-600', 'border-red-400', 'animate-[shake_0.4s_ease-in-out]');
+                    state.currentInput = "";
+                    updateInputDisplay();
+                }, 500);
+            }
+        }
+
+        // 實體鍵盤事件監聽
+        document.addEventListener('keydown', (e) => {
+            if (state.isLocked) return;
+            if (document.getElementById('game-screen').classList.contains('hidden')) return;
+            if (e.ctrlKey || e.metaKey || e.altKey) return; // 忽略組合鍵
+
+            const key = e.key.toLowerCase();
+            
+            if (key === 'backspace') {
+                handleVirtualKey('delete');
+                e.preventDefault(); 
+                return;
+            }
+            if (key === 'enter' || key === ' ') { // 允許 Enter 或空白鍵當作確認
+                handleVirtualKey('submit');
+                e.preventDefault(); 
+                return;
+            }
+
+            const bopo = physicalKeyMap[key];
+            if (bopo) {
+                handleVirtualKey(bopo);
+                e.preventDefault();
+            }
+        });
+
+        function showCompletion() {
+            const modal = document.getElementById('completion-modal');
+            const btnNext = document.getElementById('btn-next-lesson');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            speak("太棒了！拼圖解鎖完成！");
+
+            if (state.currentLessonId !== 'all' && state.currentLessonId < 12) {
+                btnNext.classList.remove('hidden');
+                document.getElementById('feedback-text').innerText = "太棒了！成功獲得星光公主的美麗畫作！";
+            } else {
+                btnNext.classList.add('hidden');
+                document.getElementById('feedback-text').innerText = "恭喜！12 幅皇家畫作全數解鎖！";
+            }
+        }
+
+        function backToMenu() {
+            window.speechSynthesis.cancel();
+            document.getElementById('completion-modal').classList.add('hidden');
+            document.getElementById('completion-modal').classList.remove('flex');
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('flex');
+            document.getElementById('menu-screen').classList.remove('hidden');
+        }
+
+        function replayLesson() {
+            window.speechSynthesis.cancel();
+            document.getElementById('completion-modal').classList.add('hidden');
+            document.getElementById('completion-modal').classList.remove('flex');
+            loadLesson(state.currentLessonId);
+        }
+
+        function goToNextLesson() {
+            window.speechSynthesis.cancel();
+            document.getElementById('completion-modal').classList.add('hidden');
+            document.getElementById('completion-modal').classList.remove('flex');
+            if (state.currentLessonId !== 'all' && state.currentLessonId < 12) {
+                loadLesson(state.currentLessonId + 1);
+            }
+        }
+
+        window.onload = () => {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+                window.speechSynthesis.getVoices(); 
+            }
+            initMenu();
+        };
+    </script>
+</body>
+</html>
